@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Sub Only - Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="logo">
+          <span class="logo-icon">▶</span>
+          Sub Only
+        </h1>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-section="channels">
+          <span class="nav-icon">📺</span>
+          Channels
+        </a>
+        <a href="#" class="nav-item" data-section="feed">
+          <span class="nav-icon">🎬</span>
+          Latest Videos
+        </a>
+        <a href="#" class="nav-item" data-section="settings">
+          <span class="nav-icon">⚙️</span>
+          Settings
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-card">
+          <div class="status-header">
+            <span>Protection</span>
+            <label class="toggle">
+              <input type="checkbox" id="enabledToggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <p class="status-text" id="statusText">Active - YouTube is filtered</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Channels Section -->
+      <section id="channelsSection" class="section active">
+        <header class="section-header">
+          <div>
+            <h2>Your Channels</h2>
+            <p class="section-subtitle">Manage the channels you want to access on YouTube</p>
+          </div>
+          <button id="addChannelBtn" class="btn btn-primary">
+            + Add Channel
+          </button>
+        </header>
+
+        <div class="channels-grid" id="channelsGrid">
+          <!-- Channels will be inserted here -->
+        </div>
+
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon">📺</div>
+          <h3>No channels yet</h3>
+          <p>Add your favorite YouTube channels to get started</p>
+          <button class="btn btn-primary" id="emptyAddBtn">+ Add Your First Channel</button>
+        </div>
+      </section>
+
+      <!-- Feed Section -->
+      <section id="feedSection" class="section">
+        <header class="section-header">
+          <div>
+            <h2>Latest Videos</h2>
+            <p class="section-subtitle">Recent uploads from your channels</p>
+          </div>
+          <button id="refreshFeed" class="btn btn-secondary">
+            ↻ Refresh
+          </button>
+        </header>
+
+        <div class="videos-grid" id="videosGrid">
+          <!-- Videos will be inserted here -->
+        </div>
+
+        <div id="feedEmpty" class="empty-state">
+          <div class="empty-icon">🎬</div>
+          <h3>No videos to show</h3>
+          <p>Add some channels first to see their latest videos</p>
+        </div>
+
+        <div id="feedLoading" class="loading-state hidden">
+          <div class="spinner"></div>
+          <p>Loading videos...</p>
+        </div>
+      </section>
+
+      <!-- Settings Section -->
+      <section id="settingsSection" class="section">
+        <header class="section-header">
+          <div>
+            <h2>Settings</h2>
+            <p class="section-subtitle">Configure your YouTube Sub Only experience</p>
+          </div>
+        </header>
+
+        <div class="settings-content">
+          <div class="settings-card">
+            <h3>Protection</h3>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Enable filtering</span>
+                <span class="setting-description">Block access to non-allowed channels and YouTube homepage</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="settingsEnabledToggle">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Schedule (Coming Soon)</h3>
+            <div class="setting-item disabled">
+              <div class="setting-info">
+                <span class="setting-label">Enable schedule</span>
+                <span class="setting-description">Only activate filtering during specific hours</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" disabled>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <p class="coming-soon-note">Schedule feature will be available in a future update</p>
+          </div>
+
+          <div class="settings-card">
+            <h3>Data</h3>
+            <div class="setting-actions">
+              <button id="exportData" class="btn btn-secondary">Export Channels</button>
+              <button id="importData" class="btn btn-secondary">Import Channels</button>
+              <input type="file" id="importFile" accept=".json" hidden>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add Channel Modal -->
+  <div id="addChannelModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Channel</h3>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="channelInput">Channel URL or Handle</label>
+          <input type="text" id="channelInput" placeholder="@channelname or youtube.com/@channelname">
+          <p class="form-hint">Enter a YouTube channel URL or handle (e.g., @mkbhd)</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelAdd">Cancel</button>
+        <button class="btn btn-primary" id="confirmAdd">Add Channel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

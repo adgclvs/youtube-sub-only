@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blocked - YouTube Sub Only</title>
+  <link rel="stylesheet" href="blocked.css">
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🚫</div>
+    <h1>Access Blocked</h1>
+    <p class="message">This page is not in your allowed list.</p>
+    <p class="url" id="blockedUrl"></p>
+
+    <div class="actions">
+      <button id="openDashboard" class="btn btn-primary">
+        Open Dashboard
+      </button>
+      <button id="goToSubscriptions" class="btn btn-secondary">
+        Go to Subscriptions
+      </button>
+    </div>
+
+    <div class="info">
+      <p>YouTube Sub Only is protecting you from distractions.</p>
+      <p>Add channels to your allowed list in the dashboard to access them.</p>
+    </div>
+
+    <button id="disableOnce" class="btn-link">
+      Disable protection temporarily
+    </button>
+  </div>
+
+  <script src="blocked.js"></script>
+</body>
+</html>
