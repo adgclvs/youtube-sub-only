@@ -252,6 +252,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'isChannelAllowed') {
+    (async () => {
+      const settings = await getSettings();
+      const allowed = isChannelAllowed(message.channelInfo, settings.channels);
+      console.log('isChannelAllowed check:', message.channelInfo, 'Result:', allowed);
+      sendResponse(allowed);
+    })();
+    return true;
+  }
+
   if (message.type === 'isBlockingActive') {
     isBlockingActive().then(sendResponse);
     return true;
