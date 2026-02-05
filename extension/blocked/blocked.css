@@ -102,16 +102,3 @@ h1 {
   margin-bottom: 8px;
 }
 
-.btn-link {
-  background: none;
-  border: none;
-  color: #6b7280;
-  font-size: 13px;
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 8px;
-}
-
-.btn-link:hover {
-  color: #aaa;
-}
