@@ -237,45 +237,47 @@ async function resolveChannelInfo(handle) {
   }
 }
 
-// Fetch RSS feed for a channel
+// Fetch RSS feed for a channel (regex parsing - DOMParser unavailable in Service Worker)
 async function fetchChannelFeed(channelId) {
   try {
     const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
     const response = await fetch(rssUrl);
     const text = await response.text();
 
-    // Parse XML
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(text, 'text/xml');
-
-    const entries = xml.querySelectorAll('entry');
     const videos = [];
 
-    entries.forEach(entry => {
-      const videoId = entry.querySelector('videoId')?.textContent;
-      const title = entry.querySelector('title')?.textContent;
-      const published = entry.querySelector('published')?.textContent;
-      const channelName = entry.querySelector('author name')?.textContent;
+    // Split by <entry> tags and parse each one
+    const entryBlocks = text.split('<entry>').slice(1); // skip first (before first entry)
 
-      // Thumbnail from media:group > media:thumbnail
-      const mediaThumbnail = entry.getElementsByTagName('media:thumbnail')[0];
-      const thumbnail = mediaThumbnail?.getAttribute('url') ||
-        `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+    for (const block of entryBlocks) {
+      const videoIdMatch = block.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
+      const titleMatch = block.match(/<title>([^<]+)<\/title>/);
+      const publishedMatch = block.match(/<published>([^<]+)<\/published>/);
+      const authorMatch = block.match(/<author>\s*<name>([^<]+)<\/name>/);
+      const thumbnailMatch = block.match(/<media:thumbnail\s+url="([^"]+)"/);
+
+      const videoId = videoIdMatch?.[1];
+      const title = titleMatch?.[1];
+      const published = publishedMatch?.[1];
+      const channelName = authorMatch?.[1];
+      const thumbnail = thumbnailMatch?.[1] ||
+        (videoId ? `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg` : null);
 
       if (videoId && title) {
         videos.push({
           videoId,
-          title,
+          title: decodeXmlEntities(title),
           url: `https://www.youtube.com/watch?v=${videoId}`,
           thumbnail,
-          channel: channelName || '',
+          channel: channelName ? decodeXmlEntities(channelName) : '',
           channelId,
           published,
           date: published ? new Date(published).toLocaleDateString() : ''
         });
       }
-    });
+    }
 
+    console.log(`Fetched ${videos.length} videos for channel ${channelId}`);
     return videos;
   } catch (error) {
     console.error('Error fetching feed for', channelId, error);
@@ -283,21 +285,50 @@ async function fetchChannelFeed(channelId) {
   }
 }
 
+// Decode XML entities like &amp; &lt; &gt; &quot; &#39;
+function decodeXmlEntities(str) {
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n));
+}
+
 // Fetch feeds for all channels
 async function fetchAllFeeds() {
   const settings = await getSettings();
   const allVideos = [];
 
+  console.log('Fetching feeds for', settings.channels.length, 'channels');
+
   for (const channel of settings.channels) {
+    console.log('Channel:', channel.name, 'channelId:', channel.channelId);
     if (channel.channelId) {
       const videos = await fetchChannelFeed(channel.channelId);
       allVideos.push(...videos);
+    } else {
+      console.warn('No channelId for', channel.name, '- trying to resolve...');
+      const handle = channel.handle?.replace('@', '') || channel.name;
+      const info = await resolveChannelInfo(handle);
+      if (info.channelId) {
+        // Update channel with resolved info
+        channel.channelId = info.channelId;
+        if (info.channelName) channel.name = info.channelName;
+        if (info.avatar) channel.avatar = info.avatar;
+        await chrome.storage.local.set({ settings });
+
+        const videos = await fetchChannelFeed(info.channelId);
+        allVideos.push(...videos);
+      }
     }
   }
 
   // Sort by date (newest first)
   allVideos.sort((a, b) => new Date(b.published) - new Date(a.published));
 
+  console.log('Total videos fetched:', allVideos.length);
   return allVideos;
 }
 
