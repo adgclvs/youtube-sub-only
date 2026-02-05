@@ -385,6 +385,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     allVideos = await chrome.runtime.sendMessage({ type: 'fetchAllFeeds' }) || [];
 
+    // Reload settings in case channelIds were resolved during fetch
+    await loadSettings();
+
     feedLoading.classList.add('hidden');
 
     renderFeedSidebar();
@@ -435,10 +438,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     let filtered = allVideos;
 
     if (activeFilter !== 'all') {
-      filtered = allVideos.filter(v =>
-        v.channelId === activeFilter ||
-        v.channel === activeFilter
+      // Find the selected channel to get all its identifiers
+      const selectedChannel = settings.channels.find(c =>
+        c.channelId === activeFilter ||
+        c.handle === activeFilter ||
+        c.name === activeFilter
       );
+
+      filtered = allVideos.filter(v => {
+        if (!selectedChannel) return v.channelId === activeFilter;
+        return v.channelId === selectedChannel.channelId ||
+               v.channel === selectedChannel.name;
+      });
     }
 
     if (filtered.length === 0) {
