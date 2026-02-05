@@ -244,9 +244,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button class="btn btn-secondary visit-channel" data-handle="${escapeHtml(channel.handle || '')}" data-id="${escapeHtml(channel.id || '')}">
             Visit Channel
           </button>
-          <button class="btn btn-secondary refresh-channel" data-index="${index}" title="Re-resolve channel ID">
-            ↻
-          </button>
           <button class="btn btn-danger remove-channel" data-index="${index}">
             🗑️
           </button>
@@ -268,27 +265,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (url) {
           window.open(url, '_blank');
         }
-      });
-    });
-
-    channelsGrid.querySelectorAll('.refresh-channel').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const index = parseInt(btn.dataset.index);
-        const channel = settings.channels[index];
-        const handle = channel.handle?.replace('@', '') || channel.name;
-
-        btn.textContent = '...';
-        btn.disabled = true;
-
-        const info = await chrome.runtime.sendMessage({ type: 'resolveChannelInfo', handle });
-        if (info && info.channelId) {
-          settings.channels[index].channelId = info.channelId;
-          if (info.channelName) settings.channels[index].name = info.channelName;
-          if (info.avatar) settings.channels[index].avatar = info.avatar;
-          await saveSettings();
-        }
-
-        renderChannels();
       });
     });
 
@@ -576,7 +552,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     return div.innerHTML;
   }
 
+  // Auto-resolve missing channelIds in background
+  async function autoResolveChannels() {
+    let updated = false;
+
+    for (const channel of settings.channels) {
+      if (!channel.channelId) {
+        const handle = channel.handle?.replace('@', '') || channel.name;
+        const info = await chrome.runtime.sendMessage({ type: 'resolveChannelInfo', handle });
+        if (info && info.channelId) {
+          channel.channelId = info.channelId;
+          if (info.channelName && channel.name === handle) channel.name = info.channelName;
+          if (info.avatar && !channel.avatar) channel.avatar = info.avatar;
+          updated = true;
+        }
+      }
+    }
+
+    if (updated) {
+      await saveSettings();
+      updateUI();
+    }
+  }
+
   // Initialize
   await loadSettings();
   updateUI();
+
+  // Auto-resolve in background (non-blocking)
+  autoResolveChannels();
 });
