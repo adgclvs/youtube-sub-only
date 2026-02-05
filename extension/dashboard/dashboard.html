@@ -84,19 +84,34 @@
           </button>
         </header>
 
-        <div class="videos-grid" id="videosGrid">
-          <!-- Videos will be inserted here -->
-        </div>
+        <div class="feed-layout">
+          <div class="feed-content">
+            <div class="videos-grid" id="videosGrid">
+              <!-- Videos will be inserted here -->
+            </div>
 
-        <div id="feedEmpty" class="empty-state">
-          <div class="empty-icon">🎬</div>
-          <h3>No videos to show</h3>
-          <p>Add some channels first to see their latest videos</p>
-        </div>
+            <div id="feedEmpty" class="empty-state">
+              <div class="empty-icon">🎬</div>
+              <h3>No videos to show</h3>
+              <p>Add some channels first to see their latest videos</p>
+            </div>
 
-        <div id="feedLoading" class="loading-state hidden">
-          <div class="spinner"></div>
-          <p>Loading videos...</p>
+            <div id="feedLoading" class="loading-state hidden">
+              <div class="spinner"></div>
+              <p>Loading videos...</p>
+            </div>
+          </div>
+
+          <aside class="feed-sidebar">
+            <div class="feed-filter-header">Channels</div>
+            <ul class="feed-filter-list" id="feedFilterList">
+              <li class="feed-filter-item active" data-channel="all">
+                <span class="feed-filter-avatar">All</span>
+                <span class="feed-filter-name">All Channels</span>
+              </li>
+              <!-- Channel filters will be inserted here -->
+            </ul>
+          </aside>
         </div>
       </section>
 

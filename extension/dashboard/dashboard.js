@@ -364,12 +364,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Feed state
+  let allVideos = [];
+  let activeFilter = 'all';
+  const feedFilterList = document.getElementById('feedFilterList');
+
   // Load feed (latest videos) via background script
   async function loadFeed() {
     if (!settings.channels || settings.channels.length === 0) {
       videosGrid.innerHTML = '';
       feedEmpty.classList.remove('hidden');
       feedLoading.classList.add('hidden');
+      renderFeedSidebar();
       return;
     }
 
@@ -377,14 +383,70 @@ document.addEventListener('DOMContentLoaded', async () => {
     feedLoading.classList.remove('hidden');
     videosGrid.innerHTML = '';
 
-    const videos = await chrome.runtime.sendMessage({ type: 'fetchAllFeeds' });
+    allVideos = await chrome.runtime.sendMessage({ type: 'fetchAllFeeds' }) || [];
 
     feedLoading.classList.add('hidden');
 
-    if (!videos || videos.length === 0) {
+    renderFeedSidebar();
+    filterAndRenderVideos();
+  }
+
+  // Render the channel filter sidebar
+  function renderFeedSidebar() {
+    let html = `
+      <li class="feed-filter-item ${activeFilter === 'all' ? 'active' : ''}" data-channel="all">
+        <span class="feed-filter-avatar">All</span>
+        <span class="feed-filter-name">All Channels</span>
+      </li>
+    `;
+
+    if (settings.channels) {
+      for (const channel of settings.channels) {
+        const id = channel.channelId || channel.handle || channel.name;
+        html += `
+          <li class="feed-filter-item ${activeFilter === id ? 'active' : ''}" data-channel="${escapeHtml(id)}">
+            <span class="feed-filter-avatar">
+              ${channel.avatar
+                ? `<img src="${channel.avatar}" alt="${escapeHtml(channel.name)}">`
+                : escapeHtml(channel.name.charAt(0).toUpperCase())}
+            </span>
+            <span class="feed-filter-name">${escapeHtml(channel.name)}</span>
+          </li>
+        `;
+      }
+    }
+
+    feedFilterList.innerHTML = html;
+
+    // Add click handlers
+    feedFilterList.querySelectorAll('.feed-filter-item').forEach(item => {
+      item.addEventListener('click', () => {
+        activeFilter = item.dataset.channel;
+        // Update active class
+        feedFilterList.querySelectorAll('.feed-filter-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        filterAndRenderVideos();
+      });
+    });
+  }
+
+  // Filter videos based on selected channel and render
+  function filterAndRenderVideos() {
+    let filtered = allVideos;
+
+    if (activeFilter !== 'all') {
+      filtered = allVideos.filter(v =>
+        v.channelId === activeFilter ||
+        v.channel === activeFilter
+      );
+    }
+
+    if (filtered.length === 0) {
       feedEmpty.classList.remove('hidden');
+      videosGrid.innerHTML = '';
     } else {
-      renderVideos(videos);
+      feedEmpty.classList.add('hidden');
+      renderVideos(filtered);
     }
   }
 

@@ -327,9 +327,106 @@ body {
 }
 
 /* Videos Grid */
+/* Feed Layout */
+.feed-layout {
+  display: flex;
+  gap: 24px;
+}
+
+.feed-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  position: sticky;
+  top: 32px;
+  align-self: flex-start;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+
+.feed-filter-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.feed-filter-list {
+  list-style: none;
+}
+
+.feed-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 2px;
+}
+
+.feed-filter-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.feed-filter-item.active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.feed-filter-item.active .feed-filter-name {
+  font-weight: 600;
+}
+
+.feed-filter-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.feed-filter-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.feed-filter-name {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.feed-filter-item.active .feed-filter-name {
+  color: var(--text-primary);
+}
+
 .videos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 24px;
 }
 
@@ -339,6 +436,8 @@ body {
   overflow: hidden;
   transition: all 0.2s;
   cursor: pointer;
+  text-decoration: none;
+  color: inherit;
 }
 
 .video-card:hover {
@@ -749,6 +848,26 @@ body {
   }
 
   .nav-item {
+    white-space: nowrap;
+  }
+
+  .feed-layout {
+    flex-direction: column-reverse;
+  }
+
+  .feed-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+  }
+
+  .feed-filter-list {
+    display: flex;
+    overflow-x: auto;
+    gap: 4px;
+  }
+
+  .feed-filter-item {
     white-space: nowrap;
   }
 }
