@@ -191,9 +191,114 @@ function isChannelAllowed(channelInfo, channels) {
              channel.handle?.toLowerCase() === `@${valueLower}` ||
              channel.handle?.toLowerCase().replace('@', '') === valueLower;
     } else {
-      return channel.id === value;
+      // Check both id and channelId fields
+      return channel.id === value || channel.channelId === value;
     }
   });
+}
+
+// Fetch channel_id and info from a YouTube handle
+async function resolveChannelInfo(handle) {
+  const cleanHandle = handle.replace('@', '');
+  try {
+    const response = await fetch(`https://www.youtube.com/@${cleanHandle}`, {
+      headers: { 'Accept-Language': 'en' }
+    });
+    const html = await response.text();
+
+    // Extract channel ID
+    let channelId = null;
+    const idMatch = html.match(/<meta\s+itemprop="channelId"\s+content="([^"]+)"/) ||
+                    html.match(/"channelId":"([^"]+)"/) ||
+                    html.match(/channel_id=([^"&]+)/);
+    if (idMatch) {
+      channelId = idMatch[1];
+    }
+
+    // Extract channel name
+    let channelName = cleanHandle;
+    const nameMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/) ||
+                      html.match(/"ownerChannelName":"([^"]+)"/);
+    if (nameMatch) {
+      channelName = nameMatch[1];
+    }
+
+    // Extract avatar
+    let avatar = null;
+    const avatarMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/);
+    if (avatarMatch) {
+      avatar = avatarMatch[1];
+    }
+
+    return { channelId, channelName, avatar };
+  } catch (error) {
+    console.error('Error resolving channel info:', error);
+    return { channelId: null, channelName: cleanHandle, avatar: null };
+  }
+}
+
+// Fetch RSS feed for a channel
+async function fetchChannelFeed(channelId) {
+  try {
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+    const response = await fetch(rssUrl);
+    const text = await response.text();
+
+    // Parse XML
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(text, 'text/xml');
+
+    const entries = xml.querySelectorAll('entry');
+    const videos = [];
+
+    entries.forEach(entry => {
+      const videoId = entry.querySelector('videoId')?.textContent;
+      const title = entry.querySelector('title')?.textContent;
+      const published = entry.querySelector('published')?.textContent;
+      const channelName = entry.querySelector('author name')?.textContent;
+
+      // Thumbnail from media:group > media:thumbnail
+      const mediaThumbnail = entry.getElementsByTagName('media:thumbnail')[0];
+      const thumbnail = mediaThumbnail?.getAttribute('url') ||
+        `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+
+      if (videoId && title) {
+        videos.push({
+          videoId,
+          title,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          thumbnail,
+          channel: channelName || '',
+          channelId,
+          published,
+          date: published ? new Date(published).toLocaleDateString() : ''
+        });
+      }
+    });
+
+    return videos;
+  } catch (error) {
+    console.error('Error fetching feed for', channelId, error);
+    return [];
+  }
+}
+
+// Fetch feeds for all channels
+async function fetchAllFeeds() {
+  const settings = await getSettings();
+  const allVideos = [];
+
+  for (const channel of settings.channels) {
+    if (channel.channelId) {
+      const videos = await fetchChannelFeed(channel.channelId);
+      allVideos.push(...videos);
+    }
+  }
+
+  // Sort by date (newest first)
+  allVideos.sort((a, b) => new Date(b.published) - new Date(a.published));
+
+  return allVideos;
 }
 
 // Handle navigation
@@ -243,20 +348,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       try {
         const settings = await getSettings();
-        const newHandle = message.channel.handle?.toLowerCase().replace('@', '');
-        const newId = message.channel.id;
+        const channel = message.channel;
+        const newHandle = channel.handle?.toLowerCase().replace('@', '');
+        const newId = channel.id || channel.channelId;
 
         const exists = settings.channels.some(c => {
           const existingHandle = c.handle?.toLowerCase().replace('@', '');
-          return (newHandle && existingHandle === newHandle) || (newId && c.id === newId);
+          return (newHandle && existingHandle === newHandle) || (newId && (c.id === newId || c.channelId === newId));
         });
 
         if (!exists) {
-          settings.channels.push(message.channel);
+          // Auto-resolve channel info if we don't have channelId
+          if (!channel.channelId && newHandle) {
+            console.log('Resolving channel info for:', newHandle);
+            const info = await resolveChannelInfo(newHandle);
+            if (info.channelId) {
+              channel.channelId = info.channelId;
+            }
+            if (info.channelName && channel.name === newHandle) {
+              channel.name = info.channelName;
+            }
+            if (info.avatar) {
+              channel.avatar = info.avatar;
+            }
+            console.log('Resolved channel info:', info);
+          }
+
+          settings.channels.push(channel);
           await chrome.storage.local.set({ settings });
-          console.log('Channel added:', message.channel);
+          console.log('Channel added:', channel);
         } else {
-          console.log('Channel already exists:', message.channel);
+          console.log('Channel already exists:', channel);
         }
 
         sendResponse({ success: true, channels: settings.channels });
@@ -298,11 +420,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     isBlockingActive().then(sendResponse);
     return true;
   }
+
+  if (message.type === 'resolveChannelInfo') {
+    resolveChannelInfo(message.handle).then(sendResponse);
+    return true;
+  }
+
+  if (message.type === 'fetchAllFeeds') {
+    fetchAllFeeds().then(sendResponse);
+    return true;
+  }
+
+  if (message.type === 'fetchChannelFeed') {
+    fetchChannelFeed(message.channelId).then(sendResponse);
+    return true;
+  }
 });
 
 // Update icon based on enabled state
 async function updateIcon() {
-  const settings = await getSettings();
   const isActive = await isBlockingActive();
 
   // Could change icon color/badge based on state

@@ -331,23 +331,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Add channel
+    // Show loading state
+    confirmAdd.disabled = true;
+    confirmAdd.textContent = 'Adding...';
+
+    // Add channel via background script (auto-resolves channelId, name, avatar)
     const channel = {
       name: handle,
       handle: `@${handle}`,
       id: null,
+      channelId: null,
       avatar: null,
       addedAt: new Date().toISOString()
     };
 
-    settings.channels.push(channel);
-    await saveSettings();
+    const response = await chrome.runtime.sendMessage({ type: 'addChannel', channel });
 
-    closeModalFn();
-    renderChannels();
+    confirmAdd.disabled = false;
+    confirmAdd.textContent = 'Add Channel';
 
-    // Try to fetch channel info in background
-    fetchChannelInfo(handle, settings.channels.length - 1);
+    if (response && response.success) {
+      settings.channels = response.channels;
+      closeModalFn();
+      renderChannels();
+    }
   });
 
   // Enter key to add channel
@@ -357,19 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Fetch channel info (avatar, real name) - best effort
-  async function fetchChannelInfo(handle, index) {
-    try {
-      // Use YouTube RSS feed to get channel info
-      const rssUrl = `https://www.youtube.com/feeds/videos.xml?user=${handle}`;
-      // Note: This might not work for all channels due to CORS
-      // In a real extension, you'd use background fetch or YouTube API
-    } catch (e) {
-      console.log('Could not fetch channel info:', e);
-    }
-  }
-
-  // Load feed (latest videos)
+  // Load feed (latest videos) via background script
   async function loadFeed() {
     if (!settings.channels || settings.channels.length === 0) {
       videosGrid.innerHTML = '';
@@ -382,37 +377,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     feedLoading.classList.remove('hidden');
     videosGrid.innerHTML = '';
 
-    const videos = [];
-
-    // Fetch RSS feeds for each channel
-    for (const channel of settings.channels) {
-      try {
-        const handle = channel.handle?.replace('@', '') || channel.name;
-        // YouTube RSS feed URL
-        const rssUrl = `https://www.youtube.com/feeds/videos.xml?user=${handle}`;
-
-        // Note: Due to CORS, we'll need to use a proxy or background fetch
-        // For now, we'll show a message
-        // In production, you'd fetch this in the background script
-      } catch (e) {
-        console.log('Error fetching feed for', channel.name, e);
-      }
-    }
+    const videos = await chrome.runtime.sendMessage({ type: 'fetchAllFeeds' });
 
     feedLoading.classList.add('hidden');
 
-    if (videos.length === 0) {
-      // Show manual message since RSS fetching has CORS limitations
-      videosGrid.innerHTML = `
-        <div class="empty-state" style="grid-column: 1 / -1;">
-          <div class="empty-icon">🔗</div>
-          <h3>Visit your channels directly</h3>
-          <p>Click on a channel in the Channels tab to see their latest videos</p>
-          <p style="color: var(--text-muted); font-size: 12px; margin-top: 16px;">
-            Note: Direct feed loading will be available in a future update with YouTube API integration
-          </p>
-        </div>
-      `;
+    if (!videos || videos.length === 0) {
+      feedEmpty.classList.remove('hidden');
     } else {
       renderVideos(videos);
     }
