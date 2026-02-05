@@ -308,6 +308,15 @@ body {
   text-overflow: ellipsis;
 }
 
+.channel-id {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
 .channel-handle {
   font-size: 13px;
   color: var(--text-secondary);

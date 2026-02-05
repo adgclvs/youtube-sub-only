@@ -235,11 +235,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="channel-details">
             <div class="channel-name">${escapeHtml(channel.name)}</div>
             <div class="channel-handle">${escapeHtml(channel.handle || channel.id)}</div>
+            ${channel.channelId
+              ? `<div class="channel-id">${escapeHtml(channel.channelId)}</div>`
+              : '<div class="channel-id" style="color:#ff4444">No channel ID resolved</div>'}
           </div>
         </div>
         <div class="channel-card-actions">
           <button class="btn btn-secondary visit-channel" data-handle="${escapeHtml(channel.handle || '')}" data-id="${escapeHtml(channel.id || '')}">
             Visit Channel
+          </button>
+          <button class="btn btn-secondary refresh-channel" data-index="${index}" title="Re-resolve channel ID">
+            ↻
           </button>
           <button class="btn btn-danger remove-channel" data-index="${index}">
             🗑️
@@ -262,6 +268,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (url) {
           window.open(url, '_blank');
         }
+      });
+    });
+
+    channelsGrid.querySelectorAll('.refresh-channel').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const index = parseInt(btn.dataset.index);
+        const channel = settings.channels[index];
+        const handle = channel.handle?.replace('@', '') || channel.name;
+
+        btn.textContent = '...';
+        btn.disabled = true;
+
+        const info = await chrome.runtime.sendMessage({ type: 'resolveChannelInfo', handle });
+        if (info && info.channelId) {
+          settings.channels[index].channelId = info.channelId;
+          if (info.channelName) settings.channels[index].name = info.channelName;
+          if (info.avatar) settings.channels[index].avatar = info.avatar;
+          await saveSettings();
+        }
+
+        renderChannels();
       });
     });
 
@@ -405,9 +432,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (settings.channels) {
       for (const channel of settings.channels) {
-        const id = channel.channelId || channel.handle || channel.name;
+        if (!channel.channelId) continue; // Skip channels without resolved ID
         html += `
-          <li class="feed-filter-item ${activeFilter === id ? 'active' : ''}" data-channel="${escapeHtml(id)}">
+          <li class="feed-filter-item ${activeFilter === channel.channelId ? 'active' : ''}" data-channel="${escapeHtml(channel.channelId)}">
             <span class="feed-filter-avatar">
               ${channel.avatar
                 ? `<img src="${channel.avatar}" alt="${escapeHtml(channel.name)}">`
@@ -438,18 +465,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let filtered = allVideos;
 
     if (activeFilter !== 'all') {
-      // Find the selected channel to get all its identifiers
-      const selectedChannel = settings.channels.find(c =>
-        c.channelId === activeFilter ||
-        c.handle === activeFilter ||
-        c.name === activeFilter
-      );
-
-      filtered = allVideos.filter(v => {
-        if (!selectedChannel) return v.channelId === activeFilter;
-        return v.channelId === selectedChannel.channelId ||
-               v.channel === selectedChannel.name;
-      });
+      // Only filter by channelId to avoid cross-channel matching
+      filtered = allVideos.filter(v => v.channelId === activeFilter);
     }
 
     if (filtered.length === 0) {

@@ -206,19 +206,42 @@ async function resolveChannelInfo(handle) {
     });
     const html = await response.text();
 
-    // Extract channel ID
+    // Extract channel ID - in priority order (most reliable first)
     let channelId = null;
-    const idMatch = html.match(/<meta\s+itemprop="channelId"\s+content="([^"]+)"/) ||
-                    html.match(/"channelId":"([^"]+)"/) ||
-                    html.match(/channel_id=([^"&]+)/);
-    if (idMatch) {
-      channelId = idMatch[1];
+
+    // Method 1: Canonical link (most reliable - always points to the channel page)
+    const canonicalMatch = html.match(/<link\s+rel="canonical"\s+href="https:\/\/www\.youtube\.com\/channel\/([^"]+)"/);
+    if (canonicalMatch) {
+      channelId = canonicalMatch[1];
+    }
+
+    // Method 2: Meta tag
+    if (!channelId) {
+      const metaMatch = html.match(/<meta\s+itemprop="channelId"\s+content="([^"]+)"/);
+      if (metaMatch) {
+        channelId = metaMatch[1];
+      }
+    }
+
+    // Method 3: Channel header data (specific to the page owner)
+    if (!channelId) {
+      const headerMatch = html.match(/"channelId":"(UC[^"]{22})","title":"[^"]*","navigationEndpoint":\{"clickTrackingParams":"[^"]*","commandMetadata":\{"webCommandMetadata":\{"url":"\/@/);
+      if (headerMatch) {
+        channelId = headerMatch[1];
+      }
+    }
+
+    // Method 4: Browse ID from the page (specific pattern for channel pages)
+    if (!channelId) {
+      const browseMatch = html.match(/"browseId":"(UC[^"]{22})"/);
+      if (browseMatch) {
+        channelId = browseMatch[1];
+      }
     }
 
     // Extract channel name
     let channelName = cleanHandle;
-    const nameMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/) ||
-                      html.match(/"ownerChannelName":"([^"]+)"/);
+    const nameMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/);
     if (nameMatch) {
       channelName = nameMatch[1];
     }
@@ -230,6 +253,7 @@ async function resolveChannelInfo(handle) {
       avatar = avatarMatch[1];
     }
 
+    console.log(`Resolved @${cleanHandle}: channelId=${channelId}, name=${channelName}`);
     return { channelId, channelName, avatar };
   } catch (error) {
     console.error('Error resolving channel info:', error);
