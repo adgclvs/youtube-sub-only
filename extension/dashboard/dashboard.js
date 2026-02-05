@@ -21,6 +21,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const exportData = document.getElementById('exportData');
   const importData = document.getElementById('importData');
   const importFile = document.getElementById('importFile');
+  const scheduleEnabledToggle = document.getElementById('scheduleEnabledToggle');
+  const scheduleRulesContainer = document.getElementById('scheduleRules');
+  const addScheduleRuleBtn = document.getElementById('addScheduleRule');
+
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   let settings = null;
 
@@ -42,13 +47,123 @@ document.addEventListener('DOMContentLoaded', async () => {
     enabledToggle.checked = settings.enabled;
     settingsEnabledToggle.checked = settings.enabled;
 
+    // Update schedule toggle
+    if (settings.schedule) {
+      scheduleEnabledToggle.checked = settings.schedule.enabled;
+    }
+
     // Update status text
-    statusText.textContent = settings.enabled
-      ? 'Active - YouTube is filtered'
-      : 'Inactive - YouTube is not filtered';
+    let statusMessage = '';
+    if (!settings.enabled) {
+      statusMessage = 'Inactive - YouTube is not filtered';
+    } else if (settings.schedule?.enabled && settings.schedule?.rules?.length > 0) {
+      statusMessage = 'Active - Scheduled filtering';
+    } else {
+      statusMessage = 'Active - YouTube is filtered';
+    }
+    statusText.textContent = statusMessage;
 
     // Update channels
     renderChannels();
+
+    // Update schedule rules
+    renderScheduleRules();
+  }
+
+  // Render schedule rules
+  function renderScheduleRules() {
+    if (!settings.schedule) {
+      settings.schedule = { enabled: false, rules: [] };
+    }
+
+    const rules = settings.schedule.rules || [];
+
+    if (rules.length === 0) {
+      scheduleRulesContainer.innerHTML = '<p class="schedule-empty">No time slots configured. Add one to set when filtering is active.</p>';
+      return;
+    }
+
+    scheduleRulesContainer.innerHTML = rules.map((rule, index) => `
+      <div class="schedule-rule" data-index="${index}">
+        <div class="schedule-rule-header">
+          <span class="schedule-rule-title">Time Slot ${index + 1}</span>
+          <button class="schedule-rule-delete" data-index="${index}">🗑️</button>
+        </div>
+        <div class="schedule-days">
+          ${DAY_NAMES.map((day, dayIndex) => `
+            <button class="day-btn ${rule.days.includes(dayIndex) ? 'active' : ''}"
+                    data-rule="${index}" data-day="${dayIndex}">
+              ${day}
+            </button>
+          `).join('')}
+        </div>
+        <div class="schedule-times">
+          <div class="time-input-group">
+            <label>From</label>
+            <input type="time" value="${rule.startTime}" data-rule="${index}" data-field="startTime">
+          </div>
+          <div class="time-input-group">
+            <label>To</label>
+            <input type="time" value="${rule.endTime}" data-rule="${index}" data-field="endTime">
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    // Add event listeners for day buttons
+    scheduleRulesContainer.querySelectorAll('.day-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ruleIndex = parseInt(btn.dataset.rule);
+        const dayIndex = parseInt(btn.dataset.day);
+        const rule = settings.schedule.rules[ruleIndex];
+
+        if (rule.days.includes(dayIndex)) {
+          rule.days = rule.days.filter(d => d !== dayIndex);
+        } else {
+          rule.days.push(dayIndex);
+          rule.days.sort((a, b) => a - b);
+        }
+
+        await saveSettings();
+        renderScheduleRules();
+      });
+    });
+
+    // Add event listeners for time inputs
+    scheduleRulesContainer.querySelectorAll('input[type="time"]').forEach(input => {
+      input.addEventListener('change', async () => {
+        const ruleIndex = parseInt(input.dataset.rule);
+        const field = input.dataset.field;
+        settings.schedule.rules[ruleIndex][field] = input.value;
+        await saveSettings();
+      });
+    });
+
+    // Add event listeners for delete buttons
+    scheduleRulesContainer.querySelectorAll('.schedule-rule-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ruleIndex = parseInt(btn.dataset.index);
+        settings.schedule.rules.splice(ruleIndex, 1);
+        await saveSettings();
+        renderScheduleRules();
+      });
+    });
+  }
+
+  // Add new schedule rule
+  async function addScheduleRule() {
+    if (!settings.schedule) {
+      settings.schedule = { enabled: false, rules: [] };
+    }
+
+    settings.schedule.rules.push({
+      days: [1, 2, 3, 4, 5], // Monday to Friday by default
+      startTime: '09:00',
+      endTime: '17:00'
+    });
+
+    await saveSettings();
+    renderScheduleRules();
   }
 
   // Navigation
@@ -86,6 +201,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveSettings();
     updateUI();
   });
+
+  // Schedule toggle handler
+  scheduleEnabledToggle.addEventListener('change', async () => {
+    if (!settings.schedule) {
+      settings.schedule = { enabled: false, rules: [] };
+    }
+    settings.schedule.enabled = scheduleEnabledToggle.checked;
+    await saveSettings();
+    updateUI();
+  });
+
+  // Add schedule rule button
+  addScheduleRuleBtn.addEventListener('click', addScheduleRule);
 
   // Render channels
   function renderChannels() {

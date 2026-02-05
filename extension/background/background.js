@@ -5,6 +5,7 @@ const DEFAULT_SETTINGS = {
   channels: [],
   schedule: {
     enabled: false,
+    // Rules format: { days: [0-6] (0=Sunday), startTime: "HH:MM", endTime: "HH:MM" }
     rules: []
   }
 };
@@ -23,19 +24,50 @@ async function getSettings() {
   return data.settings || DEFAULT_SETTINGS;
 }
 
+// Check if current time matches a schedule rule
+function isTimeInRule(rule) {
+  const now = new Date();
+  const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Check if today is in the rule's days
+  if (!rule.days.includes(currentDay)) {
+    return false;
+  }
+
+  // Parse start and end times
+  const [startHour, startMin] = rule.startTime.split(':').map(Number);
+  const [endHour, endMin] = rule.endTime.split(':').map(Number);
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+
+  // Check if current time is within the range
+  if (endMinutes > startMinutes) {
+    // Normal case: e.g., 09:00 - 17:00
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  } else {
+    // Overnight case: e.g., 22:00 - 06:00
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  }
+}
+
 // Check if blocking is currently active (considering schedule)
 async function isBlockingActive() {
   const settings = await getSettings();
 
+  // Master switch is off
   if (!settings.enabled) {
     return false;
   }
 
-  // Future: check schedule here
+  // If schedule is enabled, check if we're in an active time slot
   if (settings.schedule?.enabled && settings.schedule?.rules?.length > 0) {
-    // TODO: implement schedule checking
+    // Check if ANY rule matches current time
+    const isInSchedule = settings.schedule.rules.some(rule => isTimeInRule(rule));
+    return isInSchedule;
   }
 
+  // No schedule or schedule disabled = always active (when master switch is on)
   return true;
 }
 

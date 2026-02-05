@@ -125,18 +125,25 @@
           </div>
 
           <div class="settings-card">
-            <h3>Schedule (Coming Soon)</h3>
-            <div class="setting-item disabled">
+            <h3>Schedule</h3>
+            <div class="setting-item">
               <div class="setting-info">
                 <span class="setting-label">Enable schedule</span>
                 <span class="setting-description">Only activate filtering during specific hours</span>
               </div>
               <label class="toggle">
-                <input type="checkbox" disabled>
+                <input type="checkbox" id="scheduleEnabledToggle">
                 <span class="toggle-slider"></span>
               </label>
             </div>
-            <p class="coming-soon-note">Schedule feature will be available in a future update</p>
+
+            <div id="scheduleRules" class="schedule-rules">
+              <!-- Rules will be inserted here -->
+            </div>
+
+            <button id="addScheduleRule" class="btn btn-secondary btn-small">
+              + Add Time Slot
+            </button>
           </div>
 
           <div class="settings-card">
