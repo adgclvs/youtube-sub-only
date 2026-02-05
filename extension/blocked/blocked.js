@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const blockedUrlEl = document.getElementById('blockedUrl');
   const openDashboard = document.getElementById('openDashboard');
-  const goToSubscriptions = document.getElementById('goToSubscriptions');
 
   // Get blocked URL from query params
   const params = new URLSearchParams(window.location.search);
@@ -16,10 +15,5 @@ document.addEventListener('DOMContentLoaded', () => {
   // Open dashboard
   openDashboard.addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') });
-  });
-
-  // Go to subscriptions (allowed by default)
-  goToSubscriptions.addEventListener('click', () => {
-    window.location.href = 'https://www.youtube.com/feed/subscriptions';
   });
 });
