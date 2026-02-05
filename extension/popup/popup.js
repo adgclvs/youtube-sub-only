@@ -134,21 +134,48 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Add current channel
   addCurrentChannel.addEventListener('click', async () => {
-    if (!currentChannel || addCurrentChannel.disabled) return;
+    if (!currentChannel) {
+      console.error('No current channel detected');
+      return;
+    }
 
-    const channel = {
-      name: currentChannel.value.replace('@', ''),
-      handle: currentChannel.value.startsWith('@') ? currentChannel.value : `@${currentChannel.value}`,
-      id: currentChannel.type === 'id' ? currentChannel.value : null,
-      avatar: null,
-      addedAt: new Date().toISOString()
-    };
+    if (addCurrentChannel.disabled) {
+      console.log('Button is disabled');
+      return;
+    }
 
-    const response = await chrome.runtime.sendMessage({ type: 'addChannel', channel });
-    if (response.success) {
-      renderChannels(response.channels);
-      addCurrentChannel.disabled = true;
-      addCurrentChannel.textContent = 'Added!';
+    // Disable button immediately to prevent double clicks
+    addCurrentChannel.disabled = true;
+    addCurrentChannel.textContent = 'Adding...';
+
+    try {
+      const channel = {
+        name: currentChannel.value.replace('@', ''),
+        handle: currentChannel.value.startsWith('@') ? currentChannel.value : `@${currentChannel.value}`,
+        id: currentChannel.type === 'id' ? currentChannel.value : null,
+        avatar: null,
+        addedAt: new Date().toISOString()
+      };
+
+      console.log('Adding channel:', channel);
+
+      const response = await chrome.runtime.sendMessage({ type: 'addChannel', channel });
+      console.log('Response:', response);
+
+      if (response && response.success) {
+        renderChannels(response.channels);
+        addCurrentChannel.textContent = 'Added!';
+      } else {
+        // Re-enable if failed
+        addCurrentChannel.disabled = false;
+        addCurrentChannel.textContent = `Add @${currentChannel.value}`;
+        console.error('Failed to add channel:', response);
+      }
+    } catch (error) {
+      console.error('Error adding channel:', error);
+      // Re-enable on error
+      addCurrentChannel.disabled = false;
+      addCurrentChannel.textContent = `Add @${currentChannel.value}`;
     }
   });
 });

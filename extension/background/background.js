@@ -208,16 +208,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'addChannel') {
-    getSettings().then(async (settings) => {
-      const exists = settings.channels.some(c =>
-        c.handle === message.channel.handle || c.id === message.channel.id
-      );
-      if (!exists) {
-        settings.channels.push(message.channel);
-        await chrome.storage.local.set({ settings });
+    (async () => {
+      try {
+        const settings = await getSettings();
+        const newHandle = message.channel.handle?.toLowerCase().replace('@', '');
+        const newId = message.channel.id;
+
+        const exists = settings.channels.some(c => {
+          const existingHandle = c.handle?.toLowerCase().replace('@', '');
+          return (newHandle && existingHandle === newHandle) || (newId && c.id === newId);
+        });
+
+        if (!exists) {
+          settings.channels.push(message.channel);
+          await chrome.storage.local.set({ settings });
+          console.log('Channel added:', message.channel);
+        } else {
+          console.log('Channel already exists:', message.channel);
+        }
+
+        sendResponse({ success: true, channels: settings.channels });
+      } catch (error) {
+        console.error('Error adding channel:', error);
+        sendResponse({ success: false, error: error.message });
       }
-      sendResponse({ success: true, channels: settings.channels });
-    });
+    })();
     return true;
   }
 
