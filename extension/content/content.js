@@ -151,4 +151,88 @@
   window.addEventListener('popstate', () => {
     setTimeout(checkCurrentPage, 300);
   });
+
+  // ---- Video Progress Tracking ----
+  let progressInterval = null;
+  let currentTrackedVideoId = null;
+
+  function getVideoId() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('v');
+  }
+
+  function startTrackingProgress() {
+    stopTrackingProgress();
+
+    const videoId = getVideoId();
+    if (!videoId) return;
+
+    currentTrackedVideoId = videoId;
+
+    progressInterval = setInterval(async () => {
+      const video = document.querySelector('video.html5-main-video');
+      if (!video || !video.duration || video.duration === 0) return;
+
+      const progress = Math.min(video.currentTime / video.duration, 1);
+
+      // Only save if meaningful progress (> 2%)
+      if (progress > 0.02) {
+        try {
+          const data = await chrome.storage.local.get('watchProgress');
+          const watchProgress = data.watchProgress || {};
+
+          watchProgress[currentTrackedVideoId] = {
+            progress: Math.round(progress * 100) / 100,
+            duration: Math.round(video.duration),
+            currentTime: Math.round(video.currentTime),
+            updatedAt: Date.now()
+          };
+
+          // Keep only last 500 videos to avoid storage bloat
+          const keys = Object.keys(watchProgress);
+          if (keys.length > 500) {
+            const sorted = keys.sort((a, b) =>
+              (watchProgress[a].updatedAt || 0) - (watchProgress[b].updatedAt || 0)
+            );
+            for (let i = 0; i < keys.length - 500; i++) {
+              delete watchProgress[sorted[i]];
+            }
+          }
+
+          await chrome.storage.local.set({ watchProgress });
+        } catch (e) {
+          // Extension context may be invalidated
+        }
+      }
+    }, 5000); // Save every 5 seconds
+  }
+
+  function stopTrackingProgress() {
+    if (progressInterval) {
+      clearInterval(progressInterval);
+      progressInterval = null;
+    }
+    currentTrackedVideoId = null;
+  }
+
+  // Start tracking when on a video page
+  function checkAndTrackVideo() {
+    const pathname = new URL(window.location.href).pathname;
+    if (pathname === '/watch') {
+      const videoId = getVideoId();
+      if (videoId && videoId !== currentTrackedVideoId) {
+        startTrackingProgress();
+      }
+    } else {
+      stopTrackingProgress();
+    }
+  }
+
+  // Run tracking check on navigation
+  document.addEventListener('yt-navigate-finish', () => {
+    setTimeout(checkAndTrackVideo, 1000);
+  });
+
+  // Initial tracking check
+  setTimeout(checkAndTrackVideo, 1500);
 })();

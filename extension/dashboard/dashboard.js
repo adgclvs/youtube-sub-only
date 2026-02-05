@@ -431,7 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Filter videos based on selected channel and render
-  function filterAndRenderVideos() {
+  async function filterAndRenderVideos() {
     let filtered = allVideos;
 
     if (activeFilter !== 'all') {
@@ -446,27 +446,42 @@ document.addEventListener('DOMContentLoaded', async () => {
       videosGrid.innerHTML = '';
     } else {
       feedEmpty.classList.add('hidden');
-      renderVideos(filtered);
+      await renderVideos(filtered);
     }
   }
 
-  // Render videos
-  function renderVideos(videos) {
-    videosGrid.innerHTML = videos.map(video => `
-      <a href="${video.url}" target="_blank" class="video-card">
-        <div class="video-thumbnail">
-          <img src="${video.thumbnail}" alt="${escapeHtml(video.title)}">
-        </div>
-        <div class="video-info">
-          <div class="video-title">${escapeHtml(video.title)}</div>
-          <div class="video-meta">
-            <span class="video-channel">${escapeHtml(video.channel)}</span>
-            <span>•</span>
-            <span class="video-date">${video.date}</span>
+  // Render videos with watch progress
+  async function renderVideos(videos) {
+    // Get watch progress data
+    const watchProgress = await chrome.runtime.sendMessage({ type: 'getWatchProgress' }) || {};
+
+    videosGrid.innerHTML = videos.map(video => {
+      const progress = watchProgress[video.videoId];
+      const progressPercent = progress ? Math.round(progress.progress * 100) : 0;
+      const isWatched = progressPercent > 90;
+
+      return `
+        <a href="${video.url}" target="_blank" class="video-card ${isWatched ? 'watched' : ''}">
+          <div class="video-thumbnail">
+            <img src="${video.thumbnail}" alt="${escapeHtml(video.title)}">
+            ${progressPercent > 0 ? `
+              <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: ${progressPercent}%"></div>
+              </div>
+            ` : ''}
+            ${isWatched ? '<div class="watched-badge">WATCHED</div>' : ''}
           </div>
-        </div>
-      </a>
-    `).join('');
+          <div class="video-info">
+            <div class="video-title">${escapeHtml(video.title)}</div>
+            <div class="video-meta">
+              <span class="video-channel">${escapeHtml(video.channel)}</span>
+              <span>•</span>
+              <span class="video-date">${video.date}</span>
+            </div>
+          </div>
+        </a>
+      `;
+    }).join('');
   }
 
   refreshFeed.addEventListener('click', loadFeed);

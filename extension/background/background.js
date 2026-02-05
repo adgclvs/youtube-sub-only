@@ -452,6 +452,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'getWatchProgress') {
+    chrome.storage.local.get('watchProgress').then(data => {
+      sendResponse(data.watchProgress || {});
+    });
+    return true;
+  }
+
   if (message.type === 'resolveChannelInfo') {
     resolveChannelInfo(message.handle).then(sendResponse);
     return true;
